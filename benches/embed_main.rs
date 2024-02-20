@@ -1,14 +1,14 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 extern crate fastembed_axum;
 use fastembed_axum::embedding::embed_documents;
-use fastembed_axum::embedding::{EmbeddingRequestObject, EmbeddingResponse};
+use fastembed_axum::embedding::{EmbeddingRequestUnit, EmbeddingResponse};
 
 fn main_embed_bench(docs: &Vec<String>) -> EmbeddingResponse {
-    let model = fastembed_axum::embedding::init_model();
-    let request_objects: Vec<EmbeddingRequestObject> = docs
+    let model = fastembed_axum::embedding::init_text_embedding();
+    let request_objects: Vec<EmbeddingRequestUnit> = docs
         .iter()
         .enumerate()
-        .map(|(i, text)| EmbeddingRequestObject {
+        .map(|(i, text)| EmbeddingRequestUnit {
             text_to_embed: text.to_string(),
             id: i as i32,
         })

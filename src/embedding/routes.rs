@@ -11,18 +11,18 @@ use axum::{extract::State, http::StatusCode};
 
 use schemars::JsonSchema;
 
-use crate::{extractors::Json, state::AppState};
+use crate::{server::extractors::Json, server::state::AppState};
 
 use super::{
-    embed_documents, get_available_models, get_model_by_string, get_model_info, new_model,
-    EmbeddingRequestObject, EmbeddingResponse, JSONModelInfo, ModelNotFoundError,
+    embed_documents, get_available_models, get_current_model_info, get_model_by_string,
+    new_text_embedding, EmbeddingRequestUnit, EmbeddingResponse, JSONModelInfo, ModelNotFoundError,
 };
 use axum_macros::debug_handler;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, JsonSchema, Debug)]
 pub struct EmbeddingRequest {
-    data: Vec<EmbeddingRequestObject>,
+    data: Vec<EmbeddingRequestUnit>,
 }
 
 pub fn embed_routes(state: AppState) -> ApiRouter {
@@ -35,7 +35,7 @@ pub fn embed_routes(state: AppState) -> ApiRouter {
 }
 
 fn all_docs(op: TransformOperation) -> TransformOperation {
-    op.description("Create a new incomplete Todo item.")
+    op.description("Documentation")
         .response::<201, Json<EmbeddingRequest>>()
 }
 
@@ -44,13 +44,13 @@ pub async fn embed(
     State(state): State<AppState>,
     Json(payload): Json<EmbeddingRequest>,
 ) -> (StatusCode, Json<EmbeddingResponse>) {
-    let embeddings = embed_documents(&state.model, payload.data);
+    let embeddings = embed_documents(&state.text_embedding, payload.data);
     (StatusCode::ACCEPTED, Json(embeddings))
 }
 
-pub async fn model_info() -> (StatusCode, Json<JSONModelInfo>) {
-    let model_info = get_model_info();
-    let model_info: Result<JSONModelInfo, ModelNotFoundError> = model_info;
+pub async fn model_info(State(state): State<AppState>) -> (StatusCode, Json<JSONModelInfo>) {
+    let model_info: Result<JSONModelInfo, ModelNotFoundError> =
+        get_current_model_info(&state.model);
     match model_info {
         Ok(model) => (StatusCode::OK, Json(model)),
         Err(ModelNotFoundError) => (
@@ -69,6 +69,7 @@ pub async fn url_set_model_name(
     State(mut state): State<AppState>,
     Json(payload): Json<SetModelName>,
 ) -> StatusCode {
+    //Doesn't currently work because the state is not mutable (need to ue Arc<Mutex> instead of Arc<>)
     let model_result: Result<fastembed::EmbeddingModel, ModelNotFoundError> =
         get_model_by_string(payload.model);
     // If the model is not found, return a 404, else set the model
@@ -76,7 +77,7 @@ pub async fn url_set_model_name(
     match model_result {
         Ok(model) => {
             // If the model is found, update the state
-            state.model = Arc::new(new_model(model));
+            state.text_embedding = Arc::new(new_text_embedding(&model));
             StatusCode::CREATED
         }
         Err(ModelNotFoundError) => StatusCode::NOT_FOUND,

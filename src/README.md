@@ -1,6 +1,3 @@
-# Todo API
+# Fastembed axum server
 
-A very simple Todo server with documentation.
-
-The purpose is to showcase the documentation workflow of Aide rather
-than a correct implementation.
+Server to generate fast embeddings over text.

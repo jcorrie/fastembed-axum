@@ -6,19 +6,17 @@ use aide::{
     transform::TransformOpenApi,
 };
 use axum::{http::StatusCode, routing::get, Extension};
-use docs::docs_routes;
-use errors::AppError;
-use extractors::Json;
+use fastembed::EmbeddingModel;
 use listenfd::ListenFd;
-use state::AppState;
+use server::docs::docs_routes;
+use server::errors::AppError;
+use server::extractors::Json;
+use server::state::AppState;
 use tokio::net::TcpListener;
 use uuid::Uuid;
 
-pub mod docs;
 pub mod embedding;
-pub mod errors;
-pub mod extractors;
-pub mod state;
+pub mod server;
 
 #[tokio::main]
 async fn main() {
@@ -27,9 +25,14 @@ async fn main() {
     });
 
     aide::gen::extract_schemas(true);
-    let model = embedding::init_model();
+    let model: EmbeddingModel = EmbeddingModel::AllMiniLML6V2;
+    let model_info: embedding::JSONModelInfo =
+        embedding::get_current_model_info(&model).expect("Can't load model");
+    let text_embedding = embedding::new_text_embedding(&model);
     let state = AppState {
+        text_embedding: Arc::new(text_embedding),
         model: Arc::new(model),
+        model_info,
     };
 
     let mut api = OpenApi::default();
@@ -37,10 +40,9 @@ async fn main() {
     let app = ApiRouter::new()
         .route("/", get(hello_world))
         .nest_api_service("/embed", embedding::routes::embed_routes(state.clone()))
-        .nest_api_service("/docs", docs_routes(state.clone()))
+        .nest("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)
-        .layer(Extension(Arc::new(api))) // Arc is very important here or you will face massive memory and performance issues
-        .with_state(state);
+        .layer(Extension(Arc::new(api)));
 
     println!("Example docs are accessible at http://127.0.0.1:3100/docs");
 
@@ -64,12 +66,12 @@ async fn hello_world() -> String {
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
-    api.title("Aide axum Open API")
-        .summary("An example Todo application")
+    api.title("Fastembed axum server - API docs")
+        .summary("Generate embeddings from text inputs using a rust implementation of fastembed.")
         .description(include_str!("README.md"))
         .tag(Tag {
-            name: "todo".into(),
-            description: Some("Todo Management".into()),
+            name: "embed".into(),
+            description: Some("Generate embeddings".into()),
             ..Default::default()
         })
         .security_scheme(

@@ -11,15 +11,9 @@ use aide::{
 };
 use axum::{response::IntoResponse, Extension};
 
-use crate::{extractors::Json, state::AppState};
+use super::{extractors::Json, state::AppState};
 
 pub fn docs_routes(state: AppState) -> ApiRouter {
-    // We infer the return types for these routes
-    // as an example.
-    //
-    // As a result, the `serve_redoc` route will
-    // have the `text/html` content-type correctly set
-    // with a 200 status.
     aide::gen::infer_responses(true);
 
     let router: ApiRouter = ApiRouter::new()
