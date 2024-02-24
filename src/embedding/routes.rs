@@ -49,8 +49,12 @@ pub async fn embed(
 }
 
 pub async fn model_info(State(state): State<AppState>) -> (StatusCode, Json<JSONModelInfo>) {
-    let model_info: Result<JSONModelInfo, ModelNotFoundError> =
-        get_current_model_info(&state.model);
+    let model_lock = &state.model.lock();
+    let model = match model_lock {
+        Ok(guard) => guard,
+        Err(poisoned) => panic!("Lock poisoned: {:?}", poisoned),
+    };
+    let model_info: Result<JSONModelInfo, ModelNotFoundError> = get_current_model_info(model);
     match model_info {
         Ok(model) => (StatusCode::OK, Json(model)),
         Err(ModelNotFoundError) => (

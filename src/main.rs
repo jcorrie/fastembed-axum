@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use aide::{
     axum::ApiRouter,
@@ -31,7 +31,7 @@ async fn main() {
     let text_embedding = embedding::new_text_embedding(&model);
     let state = AppState {
         text_embedding: Arc::new(text_embedding),
-        model: Arc::new(model),
+        model: Arc::new(Mutex::new(model)),
         model_info,
     };
 
@@ -47,7 +47,6 @@ async fn main() {
     println!("Example docs are accessible at http://127.0.0.1:3100/docs");
 
     let mut listenfd = ListenFd::from_env();
-    // let listener = TcpListener::bind("0.0.0.0:3100").await.unwrap();
     let listener = match listenfd.take_tcp_listener(0).unwrap() {
         // if we are given a tcp listener on listen fd 0, we use that one
         Some(listener) => {
@@ -89,7 +88,7 @@ fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
                 error_details: None,
                 error_id: Uuid::nil(),
                 // This is not visible.
-                status: StatusCode::IM_A_TEAPOT,
+                status: StatusCode::NOT_FOUND,
             })
         })
 }
