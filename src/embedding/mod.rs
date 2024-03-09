@@ -14,7 +14,7 @@ pub struct EmbeddingRequestUnit {
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
 pub struct EmbeddingResponseObject {
     id: i32,
-    embedding: Vec<f32>,
+    embeddings: Vec<Vec<f32>>, //Vec of vecs, so we can store multiple embeddings for each document
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
@@ -32,26 +32,48 @@ pub fn embed_documents(
     let start = tokio::time::Instant::now();
     let num_docs: u32 = request.len() as u32;
     // Extract texts and ids from the request objects
-    let texts: Vec<_> = request.iter().map(|x| &x.text_to_embed).collect();
-    let ids: Vec<_> = request.iter().map(|x| x.id).collect();
-    let embeddings = model.embed(texts, None).unwrap();
-    let response_objects: Vec<_> = embeddings
-        .into_iter()
-        .zip(ids)
-        .map(|(embedding, id)| EmbeddingResponseObject { embedding, id })
-        .collect();
+    let mut ids: Vec<_> = request.iter().map(|x| x.id).collect();
+    let texts: Vec<String> = request.iter().map(|x| x.text_to_embed.clone()).collect();
+    let chunked_texts: Vec<Vec<String>> = chunk_with_overlap(texts, 320, 50);
+    let mut embedded_documents: Vec<EmbeddingResponseObject> = Vec::new();
+    for chunk in chunked_texts {
+        let embeddings = model.embed(chunk, None).unwrap();
+        let id = ids.pop().unwrap();
+        embedded_documents.push(EmbeddingResponseObject { id, embeddings });
+    }
     //get end time
     let end = tokio::time::Instant::now();
     let duration: Duration = end - start;
 
     //calculate total time in milliseconds
     let response: EmbeddingResponse = EmbeddingResponse {
-        embeddings: response_objects,
+        embeddings: embedded_documents,
         number_of_documents: num_docs,
         total_time_ms: duration.as_millis(),
         time_per_document_ms: (duration.as_millis()) / num_docs as u128,
     };
     response
+}
+
+fn chunk_with_overlap(texts: Vec<String>, chunk_size: usize, overlap: usize) -> Vec<Vec<String>> {
+    let mut all_chunks = Vec::new();
+    for text in texts {
+        let chars: Vec<char> = text.chars().collect();
+        let mut chunks = Vec::new();
+        let mut i = 0;
+        while i < chars.len() {
+            let end = std::cmp::min(i + chunk_size, chars.len());
+            let chunk: String = chars[i..end].iter().collect();
+            chunks.push(chunk);
+            i = if end == chars.len() {
+                end
+            } else {
+                end - overlap
+            };
+        }
+        all_chunks.push(chunks);
+    }
+    all_chunks
 }
 
 pub fn get_current_model_info(current_model: &EmbeddingModel) -> Result<JSONModelInfo> {

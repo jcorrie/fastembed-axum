@@ -25,7 +25,7 @@ async fn main() {
     });
 
     aide::gen::extract_schemas(true);
-    let model: EmbeddingModel = EmbeddingModel::AllMiniLML6V2;
+    let model: EmbeddingModel = EmbeddingModel::BGEBaseENV15;
     let model_info: embedding::JSONModelInfo =
         embedding::get_current_model_info(&model).expect("Can't load model");
     let text_embedding = embedding::new_text_embedding(&model);

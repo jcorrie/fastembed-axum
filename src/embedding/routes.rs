@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use aide::{
     axum::{
         routing::{get_with, post_with},
@@ -15,7 +13,7 @@ use crate::{server::extractors::Json, server::state::AppState};
 
 use super::{
     embed_documents, get_available_models, get_current_model_info, get_model_by_string,
-    new_text_embedding, EmbeddingRequestUnit, EmbeddingResponse, JSONModelInfo, ModelNotFoundError,
+    EmbeddingRequestUnit, EmbeddingResponse, JSONModelInfo, ModelNotFoundError,
 };
 use axum_macros::debug_handler;
 use serde::{Deserialize, Serialize};
@@ -70,7 +68,7 @@ pub async fn model_info(State(state): State<AppState>) -> (StatusCode, Json<JSON
 
 #[debug_handler]
 pub async fn url_set_model_name(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Json(payload): Json<SetModelName>,
 ) -> StatusCode {
     //Doesn't currently work because the state is not mutable (need to ue Arc<Mutex> instead of Arc<>)
@@ -81,7 +79,8 @@ pub async fn url_set_model_name(
     match model_result {
         Ok(model) => {
             // If the model is found, update the state
-            state.text_embedding = Arc::new(new_text_embedding(&model));
+            let mut model_guard = state.model.lock().unwrap();
+            *model_guard = model;
             StatusCode::CREATED
         }
         Err(ModelNotFoundError) => StatusCode::NOT_FOUND,
