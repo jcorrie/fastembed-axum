@@ -11,4 +11,4 @@ cargo install cargo-watch systemfd
 systemfd --no-pid -s http::3100 -- cargo watch -x run
 ```
 
-Visit docs at `localhost:3100/docs`
+OpenAPI documentation created with [aide](https://github.com/tamasfe/aide). Visit at: `localhost:3100/docs`
