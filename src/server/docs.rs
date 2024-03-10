@@ -26,10 +26,10 @@ const DEFAULT_BASE_API_URL: &str = "/";
 
 pub fn docs_routes(state: AppState, base_api_url: Option<&str>) -> ApiRouter {
     aide::gen::infer_responses(true);
-
+    let base_api_url = base_api_url.unwrap_or(DEFAULT_BASE_API_URL);
     let router: ApiRouter = ApiRouter::new()
         .api_route_with(
-            base_api_url.unwrap_or(DEFAULT_BASE_API_URL),
+            base_api_url,
             get_with(
                 Scalar::new("/docs/private/api.json")
                     .with_title("Aide Axum")
@@ -48,7 +48,10 @@ pub fn docs_routes(state: AppState, base_api_url: Option<&str>) -> ApiRouter {
             ),
             |p| p.security_requirement("ApiKey"),
         )
-        .route("/private/api.json", get(serve_docs))
+        .route(
+            &format!("{}private/api.json", base_api_url),
+            get(serve_docs),
+        )
         .with_state(state);
 
     // Afterwards we disable response inference because
