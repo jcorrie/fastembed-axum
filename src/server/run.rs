@@ -32,7 +32,7 @@ pub async fn start_server() {
     let app = ApiRouter::new()
         .route("/", get(embedding::routes::hello_world))
         .nest_api_service("/embed", embedding::routes::embed_routes(state.clone()))
-        .nest("/docs", docs_routes(state.clone(), None))
+        .nest("/test", docs_routes(state.clone(), Some("/test")))
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api)));
 

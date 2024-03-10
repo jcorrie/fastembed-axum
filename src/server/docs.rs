@@ -22,16 +22,17 @@ use axum::http::StatusCode;
 
 use super::state::AppState;
 
-const DEFAULT_BASE_API_URL: &str = "/";
+const DEFAULT_BASE_API_URL: &str = "/docs";
 
 pub fn docs_routes(state: AppState, base_api_url: Option<&str>) -> ApiRouter {
     aide::gen::infer_responses(true);
     let base_api_url = base_api_url.unwrap_or(DEFAULT_BASE_API_URL);
+    let api_json_url = "/private/api.json";
     let router: ApiRouter = ApiRouter::new()
         .api_route_with(
-            base_api_url,
+            "/",
             get_with(
-                Scalar::new("/docs/private/api.json")
+                Scalar::new(format!("{}{}", base_api_url, api_json_url))
                     .with_title("Aide Axum")
                     .axum_handler(),
                 |op| op.description("This documentation page."),
@@ -41,17 +42,14 @@ pub fn docs_routes(state: AppState, base_api_url: Option<&str>) -> ApiRouter {
         .api_route_with(
             "/redoc",
             get_with(
-                Redoc::new("/docs/private/api.json")
+                Redoc::new(format!("{}{}", base_api_url, api_json_url))
                     .with_title("Aide Axum")
                     .axum_handler(),
                 |op| op.description("This documentation page."),
             ),
             |p| p.security_requirement("ApiKey"),
         )
-        .route(
-            &format!("{}private/api.json", base_api_url),
-            get(serve_docs),
-        )
+        .route(api_json_url, get(serve_docs))
         .with_state(state);
 
     // Afterwards we disable response inference because
@@ -60,7 +58,6 @@ pub fn docs_routes(state: AppState, base_api_url: Option<&str>) -> ApiRouter {
 
     router
 }
-
 async fn serve_docs(Extension(api): Extension<Arc<OpenApi>>) -> impl IntoApiResponse {
     Json(api).into_response()
 }
