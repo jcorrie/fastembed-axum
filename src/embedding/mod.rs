@@ -1,8 +1,9 @@
-pub use routes::*;
-use serde::{Deserialize, Serialize};
 pub mod routes;
+
 use fastembed::{EmbeddingModel, InitOptions, ModelInfo, TextEmbedding};
+pub use routes::*;
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 #[derive(Clone, Deserialize, Serialize, JsonSchema, Debug)]
