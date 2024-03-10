@@ -9,9 +9,18 @@ use aide::{
     redoc::Redoc,
     scalar::Scalar,
 };
+
+use aide::{openapi::Tag, transform::TransformOpenApi};
+
 use axum::{response::IntoResponse, Extension};
 
-use super::{extractors::Json, state::AppState};
+use crate::server::errors::AppError;
+use crate::server::extractors::Json;
+use uuid::Uuid;
+
+use axum::http::StatusCode;
+
+use super::state::AppState;
 
 pub fn docs_routes(state: AppState) -> ApiRouter {
     aide::gen::infer_responses(true);
@@ -49,4 +58,33 @@ pub fn docs_routes(state: AppState) -> ApiRouter {
 
 async fn serve_docs(Extension(api): Extension<Arc<OpenApi>>) -> impl IntoApiResponse {
     Json(api).into_response()
+}
+
+pub fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
+    api.title("Fastembed axum server - API docs")
+        .summary("Generate embeddings from text inputs using a rust implementation of fastembed.")
+        .description(include_str!("../embedding/README.md"))
+        .tag(Tag {
+            name: "embed".into(),
+            description: Some("Generate embeddings".into()),
+            ..Default::default()
+        })
+        .security_scheme(
+            "ApiKey",
+            aide::openapi::SecurityScheme::ApiKey {
+                location: aide::openapi::ApiKeyLocation::Header,
+                name: "X-Auth-Key".into(),
+                description: Some("A key that is ignored.".into()),
+                extensions: Default::default(),
+            },
+        )
+        .default_response_with::<Json<AppError>, _>(|res| {
+            res.example(AppError {
+                error: "some error happened".to_string(),
+                error_details: None,
+                error_id: Uuid::nil(),
+                // This is not visible.
+                status: StatusCode::NOT_FOUND,
+            })
+        })
 }

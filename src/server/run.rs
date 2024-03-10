@@ -1,20 +1,14 @@
 use std::sync::{Arc, Mutex};
 
 use crate::embedding;
-use crate::server::docs::docs_routes;
-use crate::server::errors::AppError;
-use crate::server::extractors::Json;
+use crate::server::docs::{api_docs, docs_routes};
+
 use crate::server::state::AppState;
-use aide::{
-    axum::ApiRouter,
-    openapi::{OpenApi, Tag},
-    transform::TransformOpenApi,
-};
-use axum::{http::StatusCode, routing::get, Extension};
+use aide::{axum::ApiRouter, openapi::OpenApi};
+use axum::{routing::get, Extension};
 use fastembed::EmbeddingModel;
 use listenfd::ListenFd;
 use tokio::net::TcpListener;
-use uuid::Uuid;
 
 #[tokio::main]
 pub async fn start_server() {
@@ -36,7 +30,7 @@ pub async fn start_server() {
     let mut api = OpenApi::default();
 
     let app = ApiRouter::new()
-        .route("/", get(hello_world))
+        .route("/", get(embedding::routes::hello_world))
         .nest_api_service("/embed", embedding::routes::embed_routes(state.clone()))
         .nest("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)
@@ -56,37 +50,4 @@ pub async fn start_server() {
     };
 
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn hello_world() -> String {
-    "Hello!".to_string()
-}
-
-fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
-    api.title("Fastembed axum server - API docs")
-        .summary("Generate embeddings from text inputs using a rust implementation of fastembed.")
-        .description(include_str!("../embedding/README.md"))
-        .tag(Tag {
-            name: "embed".into(),
-            description: Some("Generate embeddings".into()),
-            ..Default::default()
-        })
-        .security_scheme(
-            "ApiKey",
-            aide::openapi::SecurityScheme::ApiKey {
-                location: aide::openapi::ApiKeyLocation::Header,
-                name: "X-Auth-Key".into(),
-                description: Some("A key that is ignored.".into()),
-                extensions: Default::default(),
-            },
-        )
-        .default_response_with::<Json<AppError>, _>(|res| {
-            res.example(AppError {
-                error: "some error happened".to_string(),
-                error_details: None,
-                error_id: Uuid::nil(),
-                // This is not visible.
-                status: StatusCode::NOT_FOUND,
-            })
-        })
 }

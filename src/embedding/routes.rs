@@ -5,6 +5,7 @@ use aide::{
     },
     transform::TransformOperation,
 };
+
 use axum::{extract::State, http::StatusCode};
 
 use schemars::JsonSchema;
@@ -88,9 +89,7 @@ pub async fn url_set_model_name(
 }
 
 #[debug_handler]
-pub async fn available_models(// this argument tells axum to parse the request body
-    // as JSON into a `CreateUser` type
-) -> (StatusCode, Json<Vec<JSONModelInfo>>) {
+pub async fn available_models() -> (StatusCode, Json<Vec<JSONModelInfo>>) {
     let models: Vec<JSONModelInfo> = get_available_models();
     (StatusCode::OK, Json(models))
 }
@@ -98,4 +97,8 @@ pub async fn available_models(// this argument tells axum to parse the request b
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct SetModelName {
     model: String,
+}
+
+pub async fn hello_world() -> (StatusCode, Json<String>) {
+    (StatusCode::OK, Json("Hello!".to_string()))
 }
