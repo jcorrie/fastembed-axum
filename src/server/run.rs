@@ -10,11 +10,15 @@ use fastembed::EmbeddingModel;
 use listenfd::ListenFd;
 use tokio::net::TcpListener;
 
+const DEFAULT_BASE_API_URL: &str = "";
+
 #[tokio::main]
-pub async fn start_server() {
+pub async fn start_server(api_base_url: Option<&str>) {
     aide::gen::on_error(|error| {
         println!("{error}");
     });
+
+    let base_api_url = api_base_url.unwrap_or(DEFAULT_BASE_API_URL);
 
     aide::gen::extract_schemas(true);
     let model: EmbeddingModel = EmbeddingModel::BGEBaseENV15;
@@ -30,13 +34,28 @@ pub async fn start_server() {
     let mut api = OpenApi::default();
 
     let app = ApiRouter::new()
-        .route("/", get(embedding::routes::hello_world))
-        .nest_api_service("/embed", embedding::routes::embed_routes(state.clone()))
-        .nest("/test", docs_routes(state.clone(), Some("/test")))
+        .route(
+            &base_api_route_builder("/", base_api_url),
+            get(embedding::routes::hello_world),
+        )
+        .nest_api_service(
+            &base_api_route_builder("/embed", base_api_url),
+            embedding::routes::embed_routes(state.clone()),
+        )
+        .nest(
+            &base_api_route_builder("/docs", base_api_url),
+            docs_routes(
+                state.clone(),
+                Some(&base_api_route_builder("/docs", base_api_url)),
+            ),
+        )
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api)));
 
-    println!("Example docs are accessible at http://127.0.0.1:3100/docs");
+    println!(
+        "Example docs are accessible at http://127.0.0.1:3100{}",
+        base_api_route_builder("/docs", base_api_url)
+    );
 
     let mut listenfd = ListenFd::from_env();
     let listener = match listenfd.take_tcp_listener(0).unwrap() {
@@ -50,4 +69,8 @@ pub async fn start_server() {
     };
 
     axum::serve(listener, app).await.unwrap();
+}
+
+fn base_api_route_builder(endpoint: &str, api_base_url: &str) -> String {
+    format!("{}{}", api_base_url, endpoint)
 }
