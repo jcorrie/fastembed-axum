@@ -22,12 +22,14 @@ use axum::http::StatusCode;
 
 use super::state::AppState;
 
-pub fn docs_routes(state: AppState) -> ApiRouter {
+const DEFAULT_BASE_API_URL: &str = "/";
+
+pub fn docs_routes(state: AppState, base_api_url: Option<&str>) -> ApiRouter {
     aide::gen::infer_responses(true);
 
     let router: ApiRouter = ApiRouter::new()
         .api_route_with(
-            "/",
+            base_api_url.unwrap_or(DEFAULT_BASE_API_URL),
             get_with(
                 Scalar::new("/docs/private/api.json")
                     .with_title("Aide Axum")
