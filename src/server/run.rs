@@ -3,10 +3,9 @@ use std::sync::{Arc, Mutex};
 use crate::embedding::{self, HFEmbeddingModelOrUserDefinedModel};
 use crate::server::docs::{api_docs, docs_routes};
 
-use crate::server::state::AppState;
+use crate::server::state::{get_app_state, AppState};
 use aide::{axum::ApiRouter, openapi::OpenApi};
 use axum::{routing::get, Extension};
-use fastembed::{EmbeddingModel, TextEmbedding};
 use listenfd::ListenFd;
 use tokio::net::TcpListener;
 
@@ -62,39 +61,4 @@ pub async fn start_server(api_base_url: Option<&str>, model_source: embedding::M
 
 fn base_api_route_builder(endpoint: &str, api_base_url: &str) -> String {
     format!("{}{}", api_base_url, endpoint)
-}
-
-pub fn get_app_state(model_source: embedding::ModelSource) -> AppState {
-    let state: AppState = match model_source {
-        embedding::ModelSource::HuggingFace => {
-            let hf_embedding_model = EmbeddingModel::BGEBaseENV15;
-            let embedding_model = embedding::HFEmbeddingModelOrUserDefinedModel::HuggingFace(
-                hf_embedding_model.clone(),
-            );
-            let model_info: embedding::JSONModelInfo =
-                embedding::get_current_model_info(&embedding_model).expect("Can't load model");
-            let text_embedding: TextEmbedding = embedding::new_text_embedding(&hf_embedding_model);
-            AppState {
-                text_embedding: Arc::new(text_embedding),
-                model: Arc::new(Mutex::new(embedding_model)),
-                model_info,
-            }
-        }
-        embedding::ModelSource::Local(model) => {
-            let model_info: embedding::JSONModelInfo = embedding::get_current_model_info(
-                &HFEmbeddingModelOrUserDefinedModel::UserDefined(model.clone()),
-            )
-            .expect("Can't load model");
-            let text_embedding: TextEmbedding =
-                embedding::new_text_embedding_user_defined(model.clone());
-            AppState {
-                text_embedding: Arc::new(text_embedding),
-                model: Arc::new(Mutex::new(HFEmbeddingModelOrUserDefinedModel::UserDefined(
-                    model,
-                ))),
-                model_info,
-            }
-        }
-    };
-    state
 }
