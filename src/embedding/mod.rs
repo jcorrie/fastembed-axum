@@ -1,6 +1,6 @@
 pub mod routes;
 
-use fastembed::{
+pub use fastembed::{
     EmbeddingModel, InitOptions, InitOptionsUserDefined, ModelInfo, TextEmbedding,
     UserDefinedEmbeddingModel,
 };
