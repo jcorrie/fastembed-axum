@@ -6,7 +6,7 @@ use crate::server::docs::{api_docs, docs_routes};
 use crate::server::state::AppState;
 use aide::{axum::ApiRouter, openapi::OpenApi};
 use axum::{routing::get, Extension};
-use fastembed::{EmbeddingModel, TextEmbedding, UserDefinedEmbeddingModel};
+pub use fastembed::{EmbeddingModel, TextEmbedding, UserDefinedEmbeddingModel};
 use listenfd::ListenFd;
 use tokio::net::TcpListener;
 
