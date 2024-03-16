@@ -10,7 +10,6 @@ use aide::{
 
 use axum::{extract::State, http::StatusCode};
 
-use fastembed::UserDefinedEmbeddingModel;
 use schemars::JsonSchema;
 
 use crate::{server::extractors::Json, server::state::AppState};
