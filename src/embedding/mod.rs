@@ -1,6 +1,9 @@
 pub mod routes;
 
-use fastembed::{EmbeddingModel, InitOptions, ModelInfo, TextEmbedding, UserDefinedEmbeddingModel};
+use fastembed::{
+    EmbeddingModel, InitOptions, InitOptionsUserDefined, ModelInfo, TextEmbedding,
+    UserDefinedEmbeddingModel,
+};
 pub use routes::*;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -86,16 +89,25 @@ fn chunk_with_overlap(texts: Vec<String>, chunk_size: usize, overlap: usize) -> 
     all_chunks
 }
 
-pub fn get_current_model_info(current_model: &EmbeddingModel) -> Result<JSONModelInfo> {
+pub fn get_current_model_info(
+    current_model: &HFEmbeddingModelOrUserDefinedModel,
+) -> Result<JSONModelInfo> {
     let models_info = TextEmbedding::list_supported_models();
-    if let Some(model) = models_info.iter().find(|s| s.model == *current_model) {
-        Ok(JSONModelInfo {
+    match current_model {
+        HFEmbeddingModelOrUserDefinedModel::HuggingFace(model) => {
+            let model_info: ModelInfo =
+                TextEmbedding::get_model_info(model).expect("Model not found");
+            Ok(JSONModelInfo {
+                name: model_info.model_code.to_string(),
+                dimension: model_info.dim as u32,
+                description: model_info.description.clone(),
+            })
+        }
+        HFEmbeddingModelOrUserDefinedModel::UserDefined(model) => Ok(JSONModelInfo {
             name: model.model_code.to_string(),
             dimension: model.dim as u32,
             description: model.description.clone(),
-        })
-    } else {
-        Err(ModelNotFoundError) // Assuming ModelError is an enum with ModelNotFoundError variant
+        }),
     }
 }
 
@@ -156,5 +168,15 @@ pub fn new_text_embedding(model_name: &EmbeddingModel) -> TextEmbedding {
         model_name: model_name.clone(),
         ..Default::default()
     })
+    .expect("Can't load model")
+}
+
+pub fn new_text_embedding_user_defined(model: Box<UserDefinedEmbeddingModel>) -> TextEmbedding {
+    TextEmbedding::try_new_from_user_defined(
+        *model,
+        InitOptionsUserDefined {
+            ..Default::default()
+        },
+    )
     .expect("Can't load model")
 }

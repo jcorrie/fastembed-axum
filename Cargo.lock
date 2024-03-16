@@ -785,7 +785,7 @@ dependencies = [
 [[package]]
 name = "fastembed"
 version = "3.2.0"
-source = "git+https://github.com/jcorrie/fastembed-rs?branch=custom-model#8dc639f1099fcc5440e10167088c59fb351a7d9d"
+source = "git+https://github.com/jcorrie/fastembed-rs?branch=custom-model#dcb985afcb61eb7abe7ebe9c80868a2198bc333d"
 dependencies = [
  "anyhow",
  "hf-hub",

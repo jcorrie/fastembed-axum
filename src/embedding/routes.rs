@@ -54,18 +54,7 @@ pub async fn embed(
 pub async fn model_info(State(state): State<AppState>) -> (StatusCode, Json<JSONModelInfo>) {
     let model_guard = state.model.lock().unwrap();
     let model = &*model_guard;
-    let model_info: Result<JSONModelInfo, ModelNotFoundError> = match model {
-        HFEmbeddingModelOrUserDefinedModel::HuggingFace(model) => {
-            get_current_model_info(&model)
-        }
-        HFEmbeddingModelOrUserDefinedModel::UserDefined(model) => {
-            Ok(JSONModelInfo {
-                name: model.model_code.clone(),
-                dimension: model.dim as u32,
-                description: model.description.clone(),
-            })
-        }
-    };
+    let model_info = get_current_model_info(model);
     match model_info {
         Ok(model) => (StatusCode::OK, Json(model)),
         Err(ModelNotFoundError) => (
