@@ -6,29 +6,37 @@ use crate::server::docs::{api_docs, docs_routes};
 use crate::server::state::AppState;
 use aide::{axum::ApiRouter, openapi::OpenApi};
 use axum::{routing::get, Extension};
-use fastembed::EmbeddingModel;
+use fastembed::{EmbeddingModel, TextEmbedding};
 use listenfd::ListenFd;
 use tokio::net::TcpListener;
 
 const DEFAULT_BASE_API_URL: &str = "";
 
 #[tokio::main]
-pub async fn start_server(api_base_url: Option<&str>) {
+pub async fn start_server(api_base_url: Option<&str>, model_source: embedding::ModelSource) {
     aide::gen::on_error(|error| {
         println!("{error}");
     });
-
     let base_api_url = api_base_url.unwrap_or(DEFAULT_BASE_API_URL);
-
     aide::gen::extract_schemas(true);
-    let model: EmbeddingModel = EmbeddingModel::BGEBaseENV15;
-    let model_info: embedding::JSONModelInfo =
-        embedding::get_current_model_info(&model).expect("Can't load model");
-    let text_embedding = embedding::new_text_embedding(&model);
-    let state = AppState {
-        text_embedding: Arc::new(text_embedding),
-        model: Arc::new(Mutex::new(model)),
-        model_info,
+    let state: AppState = match model_source {
+        embedding::ModelSource::HuggingFace => {
+            let embedding_model: EmbeddingModel = EmbeddingModel::BGEBaseENV15;
+            let model_info: embedding::JSONModelInfo =
+                embedding::get_current_model_info(&embedding_model).expect("Can't load model");
+            let text_embedding: TextEmbedding = embedding::new_text_embedding(&embedding_model);
+            AppState {
+                text_embedding: Arc::new(text_embedding),
+                model: Arc::new(Mutex::new(
+                    embedding::HFEmbeddingModelOrUserDefinedModel::HuggingFace(embedding_model),
+                )),
+                model_info,
+            }
+        }
+        embedding::ModelSource::Local(_) => {
+            println!("Local model not implemented yet");
+            return;
+        }
     };
 
     let mut api = OpenApi::default();

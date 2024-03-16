@@ -1,3 +1,4 @@
 /.fastembed_cache
 /.vscode
 /target
+Cargo.lock

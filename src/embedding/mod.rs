@@ -1,11 +1,20 @@
 pub mod routes;
 
-use fastembed::{EmbeddingModel, InitOptions, ModelInfo, TextEmbedding};
+use fastembed::{EmbeddingModel, InitOptions, ModelInfo, TextEmbedding, UserDefinedEmbeddingModel};
 pub use routes::*;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+pub enum HFEmbeddingModelOrUserDefinedModel {
+    HuggingFace(EmbeddingModel),
+    UserDefined(Box<UserDefinedEmbeddingModel>),
+}
+
+pub enum ModelSource {
+    HuggingFace,
+    Local(Box<UserDefinedEmbeddingModel>),
+}
 #[derive(Clone, Deserialize, Serialize, JsonSchema, Debug)]
 pub struct EmbeddingRequestUnit {
     pub id: i32,

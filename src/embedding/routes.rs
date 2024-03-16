@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use aide::{
     axum::{
         routing::{get_with, post_with},
@@ -8,13 +10,15 @@ use aide::{
 
 use axum::{extract::State, http::StatusCode};
 
+use fastembed::UserDefinedEmbeddingModel;
 use schemars::JsonSchema;
 
 use crate::{server::extractors::Json, server::state::AppState};
 
 use super::{
     embed_documents, get_available_models, get_current_model_info, get_model_by_string,
-    EmbeddingRequestUnit, EmbeddingResponse, JSONModelInfo, ModelNotFoundError,
+    EmbeddingRequestUnit, EmbeddingResponse, HFEmbeddingModelOrUserDefinedModel, JSONModelInfo,
+    ModelNotFoundError,
 };
 use axum_macros::debug_handler;
 use serde::{Deserialize, Serialize};
@@ -48,12 +52,20 @@ pub async fn embed(
 }
 
 pub async fn model_info(State(state): State<AppState>) -> (StatusCode, Json<JSONModelInfo>) {
-    let model_lock = &state.model.lock();
-    let model = match model_lock {
-        Ok(guard) => guard,
-        Err(poisoned) => panic!("Lock poisoned: {:?}", poisoned),
+    let model_guard = state.model.lock().unwrap();
+    let model = &*model_guard;
+    let model_info: Result<JSONModelInfo, ModelNotFoundError> = match model {
+        HFEmbeddingModelOrUserDefinedModel::HuggingFace(model) => {
+            get_current_model_info(&model)
+        }
+        HFEmbeddingModelOrUserDefinedModel::UserDefined(model) => {
+            Ok(JSONModelInfo {
+                name: model.model_code.clone(),
+                dimension: model.dim as u32,
+                description: model.description.clone(),
+            })
+        }
     };
-    let model_info: Result<JSONModelInfo, ModelNotFoundError> = get_current_model_info(model);
     match model_info {
         Ok(model) => (StatusCode::OK, Json(model)),
         Err(ModelNotFoundError) => (
@@ -72,7 +84,6 @@ pub async fn url_set_model_name(
     State(state): State<AppState>,
     Json(payload): Json<SetModelName>,
 ) -> StatusCode {
-    //Doesn't currently work because the state is not mutable (need to ue Arc<Mutex> instead of Arc<>)
     let model_result: Result<fastembed::EmbeddingModel, ModelNotFoundError> =
         get_model_by_string(payload.model);
     // If the model is not found, return a 404, else set the model
@@ -81,7 +92,7 @@ pub async fn url_set_model_name(
         Ok(model) => {
             // If the model is found, update the state
             let mut model_guard = state.model.lock().unwrap();
-            *model_guard = model;
+            *model_guard = HFEmbeddingModelOrUserDefinedModel::HuggingFace(model);
             StatusCode::CREATED
         }
         Err(ModelNotFoundError) => StatusCode::NOT_FOUND,
