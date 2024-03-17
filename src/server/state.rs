@@ -10,7 +10,7 @@ pub struct AppState {
     pub model_info: embedding::JSONModelInfo,
 }
 
-pub fn get_app_state(model_source: embedding::ModelSource) -> AppState {
+pub async fn get_app_state(model_source: embedding::ModelSource) -> AppState {
     let state: AppState = match model_source {
         embedding::ModelSource::HuggingFace => {
             let hf_embedding_model = EmbeddingModel::BGEBaseENV15;

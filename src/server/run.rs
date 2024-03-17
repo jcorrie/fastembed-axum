@@ -20,7 +20,7 @@ pub async fn start_server(api_base_url: Option<&str>, model_source: embedding::M
     aide::gen::extract_schemas(true);
 
     let mut api = OpenApi::default();
-    let state = get_app_state(model_source);
+    let state = get_app_state(model_source).await;
     let app = ApiRouter::new()
         .route(
             &base_api_route_builder("/", base_api_url),
