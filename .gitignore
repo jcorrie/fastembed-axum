@@ -2,4 +2,5 @@
 /.vscode
 /target
 Cargo.lock
+/src/main.rs
 main.rs
