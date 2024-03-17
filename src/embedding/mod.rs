@@ -187,30 +187,34 @@ pub enum LocalOrRemoteFile {
     Remote(String),
 }
 
+impl LocalOrRemoteFile {
+    pub fn read_local_or_remote_file_to_bytes(self) -> Result<Vec<u8>, LocalOrRemoteFileReadError> {
+        match self {
+            LocalOrRemoteFile::Local(path) => {
+                let mut file =
+                    std::fs::File::open(path).map_err(LocalOrRemoteFileReadError::Local)?;
+                let mut buffer = Vec::new();
+                file.read_to_end(&mut buffer)
+                    .map_err(LocalOrRemoteFileReadError::Local)?;
+                Ok(buffer)
+            }
+            LocalOrRemoteFile::Remote(url) => {
+                let response =
+                    reqwest::blocking::get(&url).map_err(LocalOrRemoteFileReadError::Remote)?;
+                Ok(response
+                    .bytes()
+                    .map_err(LocalOrRemoteFileReadError::Remote)?
+                    .to_vec())
+            }
+        }
+    }
+}
+
 pub enum LocalOrRemoteFileReadError {
     Local(std::io::Error),
     Remote(reqwest::Error),
 }
 
-pub fn read_local_or_remote_file_to_bytes(
-    file: LocalOrRemoteFile,
-) -> Result<Vec<u8>, LocalOrRemoteFileReadError> {
-    match file {
-        LocalOrRemoteFile::Local(path) => {
-            let mut file = std::fs::File::open(path).map_err(LocalOrRemoteFileReadError::Local)?;
-            let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer).map_err(LocalOrRemoteFileReadError::Local)?;
-            Ok(buffer)
-        }
-        LocalOrRemoteFile::Remote(url) => {
-            let response = reqwest::blocking::get(&url).map_err(LocalOrRemoteFileReadError::Remote)?;
-            Ok(response
-                .bytes()
-                .map_err(LocalOrRemoteFileReadError::Remote)?
-                .to_vec())
-        }
-    }
-}
 
 // fn remote() -> UserDefinedEmbeddingModel {
 //     // use the remote urls to create a UserDefinedEmbeddingModel
@@ -226,7 +230,7 @@ pub fn read_local_or_remote_file_to_bytes(
 //             .unwrap(),
 //             config_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(config_url))
 //                 .unwrap(),
-//             special_tokens_map_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(
+//             special_tokefuncns_map_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(
 //                 special_tokens_map_url,
 //             ))
 //             .unwrap(),
