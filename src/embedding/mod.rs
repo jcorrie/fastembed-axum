@@ -10,7 +10,7 @@ use reqwest;
 pub use routes::*;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, time::Duration};
+use std::{io::Read, path::PathBuf, time::Duration};
 
 pub enum HFEmbeddingModelOrUserDefinedModel {
     HuggingFace(EmbeddingModel),
@@ -94,7 +94,7 @@ fn chunk_with_overlap(texts: Vec<String>, chunk_size: usize, overlap: usize) -> 
 
 pub fn get_current_model_info(
     current_model: &HFEmbeddingModelOrUserDefinedModel,
-) -> Result<JSONModelInfo> {
+) -> Result<JSONModelInfo, ModelNotFoundError> {
     let models_info = TextEmbedding::list_supported_models();
     match current_model {
         HFEmbeddingModelOrUserDefinedModel::HuggingFace(model) => {
@@ -114,7 +114,7 @@ pub fn get_current_model_info(
     }
 }
 
-pub fn get_model_by_string(proposed_model: String) -> Result<EmbeddingModel> {
+pub fn get_model_by_string(proposed_model: String) -> Result<EmbeddingModel, ModelNotFoundError> {
     let models_info = TextEmbedding::list_supported_models();
     let models: Vec<ModelInfo> = models_info
         .into_iter()
@@ -182,22 +182,32 @@ pub fn new_text_embedding_user_defined(model: Box<UserDefinedEmbeddingModel>) ->
     .expect("Can't load model")
 }
 
-enum LocalOrRemoteFile {
+pub enum LocalOrRemoteFile {
     Local(PathBuf),
     Remote(String),
 }
 
-fn read_local_or_remote_file_to_bytes(file: LocalOrRemoteFile) -> Result<Vec<u8>, std::io::Error> {
+pub enum LocalOrRemoteFileReadError {
+    Local(std::io::Error),
+    Remote(reqwest::Error),
+}
+
+pub fn read_local_or_remote_file_to_bytes(
+    file: LocalOrRemoteFile,
+) -> Result<Vec<u8>, LocalOrRemoteFileReadError> {
     match file {
         LocalOrRemoteFile::Local(path) => {
-            let mut file = std::fs::File::open(path)?;
+            let mut file = std::fs::File::open(path).map_err(LocalOrRemoteFileReadError::Local)?;
             let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)?;
+            file.read_to_end(&mut buffer).map_err(LocalOrRemoteFileReadError::Local)?;
             Ok(buffer)
         }
         LocalOrRemoteFile::Remote(url) => {
-            let response = reqwest::blocking::get(&url)?;
-            Ok(response.bytes()?.to_vec())
+            let response = reqwest::blocking::get(&url).map_err(LocalOrRemoteFileReadError::Remote)?;
+            Ok(response
+                .bytes()
+                .map_err(LocalOrRemoteFileReadError::Remote)?
+                .to_vec())
         }
     }
 }
