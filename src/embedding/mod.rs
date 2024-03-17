@@ -209,6 +209,31 @@ impl LocalOrRemoteFile {
             }
         }
     }
+
+    pub async fn async_read_local_or_remote_file_to_bytes(
+        self,
+    ) -> Result<Vec<u8>, LocalOrRemoteFileReadError> {
+        match self {
+            LocalOrRemoteFile::Local(path) => {
+                let mut file =
+                    std::fs::File::open(path).map_err(LocalOrRemoteFileReadError::Local)?;
+                let mut buffer = Vec::new();
+                file.read_to_end(&mut buffer)
+                    .map_err(LocalOrRemoteFileReadError::Local)?;
+                Ok(buffer)
+            }
+            LocalOrRemoteFile::Remote(url) => {
+                let response = reqwest::get(&url)
+                    .await
+                    .map_err(LocalOrRemoteFileReadError::Remote)?;
+                Ok(response
+                    .bytes()
+                    .await
+                    .map_err(LocalOrRemoteFileReadError::Remote)?
+                    .to_vec())
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
