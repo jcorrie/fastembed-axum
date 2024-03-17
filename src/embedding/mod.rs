@@ -211,6 +211,7 @@ impl LocalOrRemoteFile {
     }
 }
 
+#[derive(Debug)]
 pub enum LocalOrRemoteFileReadError {
     Local(std::io::Error),
     Remote(reqwest::Error),
