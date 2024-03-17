@@ -182,6 +182,7 @@ pub fn new_text_embedding_user_defined(model: Box<UserDefinedEmbeddingModel>) ->
     .expect("Can't load model")
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub enum LocalOrRemoteFile {
     Local(PathBuf),
     Remote(String),
@@ -214,7 +215,6 @@ pub enum LocalOrRemoteFileReadError {
     Local(std::io::Error),
     Remote(reqwest::Error),
 }
-
 
 // fn remote() -> UserDefinedEmbeddingModel {
 //     // use the remote urls to create a UserDefinedEmbeddingModel
