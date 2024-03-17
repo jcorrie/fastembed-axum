@@ -5,11 +5,14 @@ pub use fastembed::{
     UserDefinedEmbeddingModel,
 };
 
+use rayon::prelude::*;
+
 use reqwest;
 
 pub use routes::*;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::{io::Read, path::PathBuf, time::Duration};
 
 pub enum HFEmbeddingModelOrUserDefinedModel {
@@ -35,10 +38,16 @@ pub struct EmbeddingResponseObject {
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
 pub struct EmbeddingResponse {
-    embeddings: Vec<EmbeddingResponseObject>,
     number_of_documents: u32,
     total_time_ms: u128,        //total time in milliseconds
     time_per_document_ms: u128, //time per document in milliseconds
+    embeddings: Vec<EmbeddingResponseObject>,
+}
+
+struct EmbeddingTracker {
+    id: i32,
+    num_docs: u32,
+    text: Vec<Vec<String>>,
 }
 
 pub fn embed_documents(
@@ -47,23 +56,53 @@ pub fn embed_documents(
 ) -> EmbeddingResponse {
     let start = tokio::time::Instant::now();
     let num_docs: u32 = request.len() as u32;
-    // Extract texts and ids from the request objects
+
     let mut ids: Vec<_> = request.iter().map(|x| x.id).collect();
     let texts: Vec<String> = request.iter().map(|x| x.text_to_embed.clone()).collect();
-    let chunked_texts: Vec<Vec<String>> = chunk_with_overlap(texts, 320, 50);
-    let mut embedded_documents: Vec<EmbeddingResponseObject> = Vec::new();
-    for chunk in chunked_texts {
-        let embeddings = model.embed(chunk, None).unwrap();
-        let id = ids.pop().unwrap();
-        embedded_documents.push(EmbeddingResponseObject { id, embeddings });
+    let mut embedding_trackers: Vec<EmbeddingTracker> = Vec::new();
+    for (i, text) in texts.iter().enumerate() {
+        let chunked_texts = chunk_with_overlap(vec![&text], 350, 50);
+        let tracker = EmbeddingTracker {
+            id: ids[i],
+            num_docs: chunked_texts.len() as u32,
+            text: chunked_texts,
+        };
+        embedding_trackers.push(tracker);
     }
+    let flattened_chunked_texts: Vec<String> = embedding_trackers
+        .iter()
+        .flat_map(|x| x.text.iter().flatten())
+        .cloned()
+        .collect();
+
+    let embeddings_vec: Vec<Vec<f32>> = model.embed(flattened_chunked_texts, None).unwrap();
+    // Rebuild the embeddings into the original structure
+    let mut embeddings: Vec<EmbeddingResponseObject> = Vec::new();
+    for tracker in embedding_trackers {
+        let mut embeddings_for_doc: Vec<Vec<f32>> = Vec::new();
+        for chunk in tracker.text {
+            let chunk_embeddings: Vec<f32> = embeddings_vec
+                .iter()
+                .take(chunk.len())
+                .cloned()
+                .collect::<Vec<Vec<f32>>>()
+                .concat();
+            embeddings_for_doc.push(chunk_embeddings);
+        }
+        let embeddings_object = EmbeddingResponseObject {
+            id: tracker.id,
+            embeddings: embeddings_for_doc,
+        };
+        embeddings.push(embeddings_object);
+    }
+
     //get end time
     let end = tokio::time::Instant::now();
     let duration: Duration = end - start;
 
     //calculate total time in milliseconds
     let response: EmbeddingResponse = EmbeddingResponse {
-        embeddings: embedded_documents,
+        embeddings,
         number_of_documents: num_docs,
         total_time_ms: duration.as_millis(),
         time_per_document_ms: (duration.as_millis()) / num_docs as u128,
@@ -71,7 +110,7 @@ pub fn embed_documents(
     response
 }
 
-fn chunk_with_overlap(texts: Vec<String>, chunk_size: usize, overlap: usize) -> Vec<Vec<String>> {
+fn chunk_with_overlap(texts: Vec<&String>, chunk_size: usize, overlap: usize) -> Vec<Vec<String>> {
     let mut all_chunks = Vec::new();
     for text in texts {
         let chars: Vec<char> = text.chars().collect();

@@ -26,6 +26,7 @@ axum-macros = "0.4.0"
 # fastembed = "3.2.0"
 fastembed = { git = "https://github.com/jcorrie/fastembed-rs", branch= "custom-model" }
 listenfd = "1.0.1"
+rayon = "1.9.0"
 reqwest = "0.11.26"
 schemars = { version = "0.8.10", features = ["uuid1"] }
 serde = { version = "1.0.144", features = ["derive", "rc"] }
