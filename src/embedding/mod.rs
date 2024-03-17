@@ -180,3 +180,54 @@ pub fn new_text_embedding_user_defined(model: Box<UserDefinedEmbeddingModel>) ->
     )
     .expect("Can't load model")
 }
+
+enum LocalOrRemoteFile {
+    Local(PathBuf),
+    Remote(String),
+}
+
+fn read_local_or_remote_file_to_bytes(
+    file: LocalOrRemoteFile,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    match file {
+        LocalOrRemoteFile::Local(path) => {
+            let mut file = std::fs::File::open(path)?;
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer)?;
+            Ok(buffer)
+        }
+        LocalOrRemoteFile::Remote(url) => {
+            let response = reqwest::blocking::get(&url)?;
+            Ok(response.bytes()?.to_vec())
+        }
+    }
+}
+
+fn remote() -> UserDefinedEmbeddingModel {
+   
+    // use the remote urls to create a UserDefinedEmbeddingModel
+
+    let user_defined_model = UserDefinedEmbeddingModel {
+        model_code: "user_defined_model".to_string(),
+        dim: 384,
+        description: "User defined model".to_string(),
+        onnx_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(onnx_url)).unwrap(),
+        tokenizer_files: TokenizerFiles {
+            tokenizer_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(
+                tokenizer_url,
+            ))
+            .unwrap(),
+            config_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(config_url))
+                .unwrap(),
+            special_tokens_map_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(
+                special_tokens_map_url,
+            ))
+            .unwrap(),
+            tokenizer_config_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(
+                tokenizer_config_url,
+            ))
+            .unwrap(),
+        },
+    };
+    user_defined_model
+}
