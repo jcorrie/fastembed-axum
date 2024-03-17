@@ -811,6 +811,7 @@ dependencies = [
  "criterion",
  "fastembed",
  "listenfd",
+ "reqwest",
  "schemars",
  "serde",
  "serde_json",

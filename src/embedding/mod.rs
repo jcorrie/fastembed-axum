@@ -4,10 +4,13 @@ pub use fastembed::{
     EmbeddingModel, InitOptions, InitOptionsUserDefined, ModelInfo, TextEmbedding,
     UserDefinedEmbeddingModel,
 };
+
+use reqwest;
+
 pub use routes::*;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
 
 pub enum HFEmbeddingModelOrUserDefinedModel {
     HuggingFace(EmbeddingModel),
@@ -146,8 +149,6 @@ pub struct JSONModelInfo {
     pub description: String,
 }
 
-type Result<T> = std::result::Result<T, ModelNotFoundError>;
-
 #[derive(Debug, Clone)]
 pub struct ModelNotFoundError;
 
@@ -186,9 +187,7 @@ enum LocalOrRemoteFile {
     Remote(String),
 }
 
-fn read_local_or_remote_file_to_bytes(
-    file: LocalOrRemoteFile,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+fn read_local_or_remote_file_to_bytes(file: LocalOrRemoteFile) -> Result<Vec<u8>, std::io::Error> {
     match file {
         LocalOrRemoteFile::Local(path) => {
             let mut file = std::fs::File::open(path)?;
@@ -203,31 +202,29 @@ fn read_local_or_remote_file_to_bytes(
     }
 }
 
-fn remote() -> UserDefinedEmbeddingModel {
-   
-    // use the remote urls to create a UserDefinedEmbeddingModel
-
-    let user_defined_model = UserDefinedEmbeddingModel {
-        model_code: "user_defined_model".to_string(),
-        dim: 384,
-        description: "User defined model".to_string(),
-        onnx_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(onnx_url)).unwrap(),
-        tokenizer_files: TokenizerFiles {
-            tokenizer_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(
-                tokenizer_url,
-            ))
-            .unwrap(),
-            config_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(config_url))
-                .unwrap(),
-            special_tokens_map_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(
-                special_tokens_map_url,
-            ))
-            .unwrap(),
-            tokenizer_config_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(
-                tokenizer_config_url,
-            ))
-            .unwrap(),
-        },
-    };
-    user_defined_model
-}
+// fn remote() -> UserDefinedEmbeddingModel {
+//     // use the remote urls to create a UserDefinedEmbeddingModel
+//     let user_defined_model = UserDefinedEmbeddingModel {
+//         model_code: "user_defined_model".to_string(),
+//         dim: 384,
+//         description: "User defined model".to_string(),
+//         onnx_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(onnx_url)).unwrap(),
+//         tokenizer_files: TokenizerFiles {
+//             tokenizer_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(
+//                 tokenizer_url,
+//             ))
+//             .unwrap(),
+//             config_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(config_url))
+//                 .unwrap(),
+//             special_tokens_map_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(
+//                 special_tokens_map_url,
+//             ))
+//             .unwrap(),
+//             tokenizer_config_file: read_local_or_remote_file_to_bytes(LocalOrRemoteFile::Remote(
+//                 tokenizer_config_url,
+//             ))
+//             .unwrap(),
+//         },
+//     };
+//     user_defined_model
+// }
