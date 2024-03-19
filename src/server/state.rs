@@ -32,7 +32,7 @@ pub async fn get_app_state(model_source: embedding::ModelSource) -> AppState {
             )
             .expect("Can't load model");
             let text_embedding: TextEmbedding =
-                embedding::new_text_embedding_user_defined(model.clone());
+                embedding::new_text_embedding_user_defined(*model.clone());
             AppState {
                 text_embedding: Arc::new(text_embedding),
                 model: Arc::new(Mutex::new(HFEmbeddingModelOrUserDefinedModel::UserDefined(

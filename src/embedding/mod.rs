@@ -5,14 +5,11 @@ pub use fastembed::{
     UserDefinedEmbeddingModel,
 };
 
-use rayon::prelude::*;
-
 use reqwest;
 
 pub use routes::*;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::{io::Read, path::PathBuf, time::Duration};
 
 pub enum HFEmbeddingModelOrUserDefinedModel {
@@ -44,10 +41,11 @@ pub struct EmbeddingResponse {
     embeddings: Vec<EmbeddingResponseObject>,
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 struct EmbeddingTracker {
     id: i32,
     num_docs: u32,
-    text: Vec<Vec<String>>,
+    text: Vec<String>,
 }
 
 pub fn embed_documents(
@@ -56,12 +54,11 @@ pub fn embed_documents(
 ) -> EmbeddingResponse {
     let start = tokio::time::Instant::now();
     let num_docs: u32 = request.len() as u32;
-
-    let mut ids: Vec<_> = request.iter().map(|x| x.id).collect();
+    let ids: Vec<_> = request.iter().map(|x| x.id).collect();
     let texts: Vec<String> = request.iter().map(|x| x.text_to_embed.clone()).collect();
     let mut embedding_trackers: Vec<EmbeddingTracker> = Vec::new();
     for (i, text) in texts.iter().enumerate() {
-        let chunked_texts = chunk_with_overlap(vec![&text], 350, 50);
+        let chunked_texts = chunk_with_overlap(text, 10, 3);
         let tracker = EmbeddingTracker {
             id: ids[i],
             num_docs: chunked_texts.len() as u32,
@@ -69,10 +66,10 @@ pub fn embed_documents(
         };
         embedding_trackers.push(tracker);
     }
+    println!("{:?}", embedding_trackers);
     let flattened_chunked_texts: Vec<String> = embedding_trackers
         .iter()
-        .flat_map(|x| x.text.iter().flatten())
-        .cloned()
+        .flat_map(|tracker| tracker.text.clone())
         .collect();
 
     let embeddings_vec: Vec<Vec<f32>> = model.embed(flattened_chunked_texts, None).unwrap();
@@ -110,31 +107,26 @@ pub fn embed_documents(
     response
 }
 
-fn chunk_with_overlap(texts: Vec<&String>, chunk_size: usize, overlap: usize) -> Vec<Vec<String>> {
-    let mut all_chunks = Vec::new();
-    for text in texts {
-        let chars: Vec<char> = text.chars().collect();
-        let mut chunks = Vec::new();
-        let mut i = 0;
-        while i < chars.len() {
-            let end = std::cmp::min(i + chunk_size, chars.len());
-            let chunk: String = chars[i..end].iter().collect();
-            chunks.push(chunk);
-            i = if end == chars.len() {
-                end
-            } else {
-                end - overlap
-            };
-        }
-        all_chunks.push(chunks);
+fn chunk_with_overlap(text: &str, chunk_size: usize, overlap: usize) -> Vec<String> {
+    let chars: Vec<char> = text.chars().collect();
+    let mut chunks = Vec::new();
+    let mut i = 0;
+    while i < chars.len() {
+        let end = std::cmp::min(i + chunk_size, chars.len());
+        let chunk: String = chars[i..end].iter().collect();
+        chunks.push(chunk);
+        i = if end == chars.len() {
+            end
+        } else {
+            end - overlap
+        };
     }
-    all_chunks
+    chunks
 }
 
 pub fn get_current_model_info(
     current_model: &HFEmbeddingModelOrUserDefinedModel,
 ) -> Result<JSONModelInfo, ModelNotFoundError> {
-    let models_info = TextEmbedding::list_supported_models();
     match current_model {
         HFEmbeddingModelOrUserDefinedModel::HuggingFace(model) => {
             let model_info: ModelInfo =
@@ -211,9 +203,9 @@ pub fn new_text_embedding(model_name: &EmbeddingModel) -> TextEmbedding {
     .expect("Can't load model")
 }
 
-pub fn new_text_embedding_user_defined(model: Box<UserDefinedEmbeddingModel>) -> TextEmbedding {
+pub fn new_text_embedding_user_defined(model: UserDefinedEmbeddingModel) -> TextEmbedding {
     TextEmbedding::try_new_from_user_defined(
-        *model,
+        model,
         InitOptionsUserDefined {
             ..Default::default()
         },
@@ -240,7 +232,7 @@ impl LocalOrRemoteFile {
             }
             LocalOrRemoteFile::Remote(url) => {
                 let response =
-                    reqwest::blocking::get(&url).map_err(LocalOrRemoteFileReadError::Remote)?;
+                    reqwest::blocking::get(url).map_err(LocalOrRemoteFileReadError::Remote)?;
                 Ok(response
                     .bytes()
                     .map_err(LocalOrRemoteFileReadError::Remote)?

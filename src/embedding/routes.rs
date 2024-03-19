@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use aide::{
     axum::{
         routing::{get_with, post_with},

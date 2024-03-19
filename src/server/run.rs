@@ -1,9 +1,9 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use crate::embedding::{self, HFEmbeddingModelOrUserDefinedModel};
+use crate::embedding::{self};
 use crate::server::docs::{api_docs, docs_routes};
 
-use crate::server::state::{get_app_state, AppState};
+use crate::server::state::get_app_state;
 use aide::{axum::ApiRouter, openapi::OpenApi};
 use axum::{routing::get, Extension};
 use listenfd::ListenFd;
@@ -40,11 +40,6 @@ pub async fn start_server(api_base_url: Option<&str>, model_source: embedding::M
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api)));
 
-    println!(
-        "Example docs are accessible at http://127.0.0.1:3100{}",
-        base_api_route_builder("/docs", base_api_url)
-    );
-
     let mut listenfd = ListenFd::from_env();
     let listener = match listenfd.take_tcp_listener(0).unwrap() {
         // if we are given a tcp listener on listen fd 0, we use that one
@@ -53,7 +48,13 @@ pub async fn start_server(api_base_url: Option<&str>, model_source: embedding::M
             TcpListener::from_std(listener).unwrap()
         }
         // otherwise fall back to local listening
-        None => TcpListener::bind("127.0.0.1:3100").await.unwrap(),
+        None => {
+            println!(
+                "Example docs are accessible at http://127.0.0.1:3100{}",
+                base_api_route_builder("/docs", base_api_url)
+            );
+            TcpListener::bind("127.0.0.1:3100").await.unwrap()
+        }
     };
 
     axum::serve(listener, app).await.unwrap();
