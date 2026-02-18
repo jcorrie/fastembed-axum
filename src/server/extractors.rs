@@ -31,7 +31,7 @@ impl From<JsonSchemaRejection> for AppError {
             JsonSchemaRejection::Json(j) => Self::new(&j.to_string()),
             JsonSchemaRejection::Serde(_) => Self::new("invalid request"),
             JsonSchemaRejection::Schema(s) => {
-                Self::new("invalid request").with_details(json!({ "schema_validation": s }))
+                Self::new("invalid request").with_details(json!({ "schema_validation": s.list()}))
             }
         }
     }

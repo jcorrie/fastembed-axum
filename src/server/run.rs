@@ -13,11 +13,11 @@ const DEFAULT_BASE_API_URL: &str = "";
 
 #[tokio::main]
 pub async fn start_server(api_base_url: Option<&str>, model_source: embedding::ModelSource) {
-    aide::gen::on_error(|error| {
+    aide::generate::on_error(|error| {
         println!("{error}");
     });
     let base_api_url = api_base_url.unwrap_or(DEFAULT_BASE_API_URL);
-    aide::gen::extract_schemas(true);
+    aide::generate::extract_schemas(true);
 
     let mut api = OpenApi::default();
     let state = get_app_state(model_source).await;
