@@ -44,7 +44,11 @@ pub async fn embed(
     State(state): State<AppState>,
     Json(payload): Json<EmbeddingRequest>,
 ) -> (StatusCode, Json<EmbeddingResponse>) {
-    let embeddings = embed_documents(&state.text_embedding, payload.data);
+    let mut embedding_model = state
+        .text_embedding
+        .lock()
+        .expect("Fail to get lock on model");
+    let embeddings = embed_documents(&mut embedding_model, payload.data);
     (StatusCode::ACCEPTED, Json(embeddings))
 }
 

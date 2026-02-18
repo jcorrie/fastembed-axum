@@ -25,7 +25,7 @@ use super::state::AppState;
 const DEFAULT_BASE_API_URL: &str = "/docs";
 
 pub fn docs_routes(state: AppState, base_api_url: Option<&str>) -> ApiRouter {
-    aide::gen::infer_responses(true);
+    aide::generate::infer_responses(true);
     let base_api_url = base_api_url.unwrap_or(DEFAULT_BASE_API_URL);
     let api_json_url = "/private/api.json";
     let router: ApiRouter = ApiRouter::new()
@@ -54,7 +54,7 @@ pub fn docs_routes(state: AppState, base_api_url: Option<&str>) -> ApiRouter {
 
     // Afterwards we disable response inference because
     // it might be incorrect for other routes.
-    aide::gen::infer_responses(false);
+    aide::generate::infer_responses(false);
 
     router
 }

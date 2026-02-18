@@ -49,7 +49,7 @@ struct EmbeddingTracker {
 }
 
 pub fn embed_documents(
-    model: &TextEmbedding,
+    model: &mut TextEmbedding,
     request: Vec<EmbeddingRequestUnit>,
 ) -> EmbeddingResponse {
     let start = tokio::time::Instant::now();
@@ -129,7 +129,7 @@ pub fn get_current_model_info(
 ) -> Result<JSONModelInfo, ModelNotFoundError> {
     match current_model {
         HFEmbeddingModelOrUserDefinedModel::HuggingFace(model) => {
-            let model_info: ModelInfo =
+            let model_info: &ModelInfo<EmbeddingModel> =
                 TextEmbedding::get_model_info(model).expect("Model not found");
             Ok(JSONModelInfo {
                 name: model_info.model_code.to_string(),
@@ -137,17 +137,17 @@ pub fn get_current_model_info(
                 description: model_info.description.clone(),
             })
         }
-        HFEmbeddingModelOrUserDefinedModel::UserDefined(model) => Ok(JSONModelInfo {
-            name: model.model_code.to_string(),
-            dimension: model.dim as u32,
-            description: model.description.clone(),
-        }),
+        HFEmbeddingModelOrUserDefinedModel::UserDefined(model) => todo!(), // {Ok(JSONModelInfo {
+                                                                           //     name: model.model_code.to_string(),
+                                                                           //     dimension: model.dim as u32,
+                                                                           //     description: model.description.clone(),
+                                                                           // })},
     }
 }
 
 pub fn get_model_by_string(proposed_model: String) -> Result<EmbeddingModel, ModelNotFoundError> {
     let models_info = TextEmbedding::list_supported_models();
-    let models: Vec<ModelInfo> = models_info
+    let models: Vec<ModelInfo<EmbeddingModel>> = models_info
         .into_iter()
         .filter(|s| s.model_code == proposed_model)
         .collect();
@@ -195,22 +195,22 @@ pub fn init_text_embedding() -> TextEmbedding {
 }
 
 pub fn new_text_embedding(model_name: &EmbeddingModel) -> TextEmbedding {
-    TextEmbedding::try_new(InitOptions {
-        cache_dir: Into::into("./.fastembed_cache"),
-        model_name: model_name.clone(),
-        ..Default::default()
-    })
+    const CACHE_DIR: &str = "./.fastembed_cache";
+    TextEmbedding::try_new(
+        InitOptions::new(model_name.clone()).with_cache_dir(Into::into(CACHE_DIR)),
+    )
     .expect("Can't load model")
 }
 
 pub fn new_text_embedding_user_defined(model: UserDefinedEmbeddingModel) -> TextEmbedding {
-    TextEmbedding::try_new_from_user_defined(
-        model,
-        InitOptionsUserDefined {
-            ..Default::default()
-        },
-    )
-    .expect("Can't load model")
+    todo!()
+    // TextEmbedding::try_new_from_user_defined(
+    //     model,
+    //     InitOptionsUserDefined {
+    //         ..Default::default()
+    //     },
+    // )
+    // .expect("Can't load model")
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
