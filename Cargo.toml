@@ -23,7 +23,7 @@ axum = { version = "0.8.8", features = ["macros", "json", "tokio"] }
 axum-extra = "0.12.5"
 axum-jsonschema = { version = "0.9.1", features = ["aide"] }
 axum-macros = "0.5.0"
-fastembed = "5.9.0"
+fastembed = "5.13.0"
 listenfd = "1.0.1"
 rayon = "1.9.0"
 reqwest = { version = "0.11.26", features = ["blocking"] }
